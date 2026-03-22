@@ -35,6 +35,7 @@ system flow
 0. trusted issuer registration
 	trusted issuers have a DID. the full DID document with public key is stored in IPFS. a call to the registry contract maps the trusted issuer 
 	ethereum address to an IPFS DID reference. note this is a separate mapping of trusted issuer ethereum address -> IPFS DID reference.
+	only the original contract owner can add trusted issuers.
 1. DID creation
 	user creates a DID and keypair in the wallet. the wallet stores the DID and private key.
 2. DID storage
