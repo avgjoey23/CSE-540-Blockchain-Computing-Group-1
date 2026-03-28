@@ -81,8 +81,11 @@ This project is built upon the Ethereum blockchain.
 
 - Ethereum
 - Remix IDE
-- TODO
+- React Javascript library
+- Node.js
 
 ## Project Deployment
 
-- TODO
+Project will be deployed by running the command
+`npm run dev`
+Implementation connecting frontend application to backened blockchain application is still in progress.
