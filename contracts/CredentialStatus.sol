@@ -2,16 +2,24 @@
 pragma solidity ^0.8.0;
 
 /*
+    Required functions from DIDRegistry contract
+*/
+interface IDIDRegistry {
+    function isTrustedIssuer(address issuerAddress) external view returns (bool);
+}
+
+/*
     Allows storage of Verifiable Credential status. They key is the hash of a VC. The status can be granted, revoked, or not exist.
     Statuses may only be changed by trusted issuers, as specified in the DID Registry Contract.
 
-    TODO: should only be done by trusted issuers. maybe add a mapping of address to issuer DID in DID Registry and check that.
-          if it exists (non-empty string) then the address that send this request is trusted
-    TODO: use bytes32 as keys because it is cheaper.
+    All passed VC hashes should be 32 bytes in the keccak256 format. 
 */
 contract CredentialStatus {
     // creator  of the contract
     address public contractOwner;
+
+    // reference to the DIDRegistry contract
+    IDIDRegistry public DIDRegistry;
 
     // the status of a credential 
     enum CredentialStatusCode {
@@ -21,20 +29,26 @@ contract CredentialStatus {
     }
 
     // event emitted when the status of a credential is changed
-    event CredentialStatusChanged(string VCHash, CredentialStatusCode status);
+    event CredentialStatusChanged(bytes32 VCHash, CredentialStatusCode status);
     // event emitted when the status of a credential is queried
-    event CredentialStatusQueried(string VCHash, CredentialStatusCode status);
+    event CredentialStatusQueried(bytes32 VCHash, CredentialStatusCode status);
 
     // map the VC hash to a credential status code
-    mapping(string VCHash => CredentialStatusCode) private _VCHashToCredentialStatusCode;
+    mapping(bytes32 VCHash => CredentialStatusCode) private _VCHashToCredentialStatusCode;
 
     // set deployer as contractOwner
-    constructor() {
+    constructor(address DIDRegistryAddress) {
         contractOwner = msg.sender;
+        DIDRegistry = IDIDRegistry(DIDRegistryAddress);
     }
 
-    // Issues rights to a VC hash. The VC hash must not exist
-    function issueCredential(string calldata VCHash) external {
+    // Issues rights to a VC hash. The VC hash must not exist. Can only be done by trusted issuer.
+    function issueCredential(bytes32 VCHash) external {
+        require(
+            DIDRegistry.isTrustedIssuer(msg.sender),
+            "Caller is not a registered trusted issuer."
+        );
+
         require(
             _VCHashToCredentialStatusCode[VCHash] == CredentialStatusCode.DoesNotExist,
             "Credential already exists."
@@ -44,8 +58,13 @@ contract CredentialStatus {
         emit CredentialStatusChanged(VCHash, CredentialStatusCode.Issued);
     }
 
-    // Revokes rights of a VC hash. The VC hash must be currently issued
-    function revokeCredential(string calldata VCHash) external {
+    // Revokes rights of a VC hash. The VC hash must be currently issued. Can only be done by trusted issuer.
+    function revokeCredential(bytes32 VCHash) external {
+        require(
+            DIDRegistry.isTrustedIssuer(msg.sender),
+            "Caller is not a registered trusted issuer."
+        );
+
         require(
             _VCHashToCredentialStatusCode[VCHash] == CredentialStatusCode.Issued,
             "Credential not issued."
@@ -55,8 +74,8 @@ contract CredentialStatus {
         emit CredentialStatusChanged(VCHash, CredentialStatusCode.Revoked);
     }
 
-    // Returns the current status code of a VC hash
-    function getCredentialStatusCode(string calldata VCHash) external returns(CredentialStatusCode) {
+    // Returns the current status code of a VC hash.
+    function getCredentialStatusCode(bytes32 VCHash) external returns(CredentialStatusCode) {
         CredentialStatusCode status = _VCHashToCredentialStatusCode[VCHash];
 
         emit CredentialStatusQueried(VCHash, status);
