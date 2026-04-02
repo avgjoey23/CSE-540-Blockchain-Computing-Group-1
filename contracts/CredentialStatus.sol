@@ -33,24 +33,30 @@ contract CredentialStatus {
         contractOwner = msg.sender;
     }
 
-    // Issues rights to a VC hash. The VC hash must not exist
-    function issueCredential(string calldata VCHash) external {
+    modifier newCredential(string calldata VCHash) {
         require(
             _VCHashToCredentialStatusCode[VCHash] == CredentialStatusCode.DoesNotExist,
             "Credential already exists."
         );
+        _;
+    }
 
+    modifier canRevoke(string calldata VCHash){
+         require(
+            _VCHashToCredentialStatusCode[VCHash] == CredentialStatusCode.Issued,
+            "Credential not issued."
+        );
+        _;
+    }
+
+    // Issues rights to a VC hash. The VC hash must not exist
+    function issueCredential(string calldata VCHash) newCredential(VCHash) external {
         _VCHashToCredentialStatusCode[VCHash] = CredentialStatusCode.Issued;
         emit CredentialStatusChanged(VCHash, CredentialStatusCode.Issued);
     }
 
     // Revokes rights of a VC hash. The VC hash must be currently issued
-    function revokeCredential(string calldata VCHash) external {
-        require(
-            _VCHashToCredentialStatusCode[VCHash] == CredentialStatusCode.Issued,
-            "Credential not issued."
-        );
-
+    function revokeCredential(string calldata VCHash) canRevoke(VCHash)external {
         _VCHashToCredentialStatusCode[VCHash] = CredentialStatusCode.Revoked;
         emit CredentialStatusChanged(VCHash, CredentialStatusCode.Revoked);
     }
