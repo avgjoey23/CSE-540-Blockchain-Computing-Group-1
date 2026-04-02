@@ -32,13 +32,45 @@ contract DIDRegistry {
         contractOwner = msg.sender;
     }
 
-    // Adds a trusted issuer mapping. Can only be called by the contract owner address.
-    function registerIssuer(string calldata issuerDIDID, string calldata issuerIPFSCID) external {
-        require(
+    modifier onlyOwner {
+       require(
             msg.sender == contractOwner,
             "Only the contract owner can add trusted issuers."
+        ); 
+        _;
+    }
+
+    modifier newUser(string calldata userDIDID) {
+         require(
+            bytes(_userDIDIDToUserIPFSCID[userDIDID]).length == 0,
+            "User DID ID already exists."
+        );
+        _;
+    }
+
+    modifier onlyOriginalSender(string calldata userDIDID) {
+        require(
+            msg.sender == _userDIDIDToAddress[userDIDID],
+            "Message sender is not DID ID owner."
+        );
+        _;
+    }
+
+    modifier updatesAllowed(string calldata userDIDID) {
+         require(
+            bytes(_userDIDIDToUserIPFSCID[userDIDID]).length != 0,
+            "User DID ID does not exist."
         );
 
+        require(
+            msg.sender == _userDIDIDToAddress[userDIDID],
+            "Message sender is not DID ID owner."
+        );
+        _;
+    }
+
+    // Adds a trusted issuer mapping. Can only be called by the contract owner address.
+    function registerIssuer(string calldata issuerDIDID, string calldata issuerIPFSCID) onlyOwner external {
         _issuerDIDIDToIssuerIPFSCID[issuerDIDID] = issuerIPFSCID;
         emit IssuerRegistered(issuerDIDID, issuerIPFSCID);
     }
@@ -49,29 +81,14 @@ contract DIDRegistry {
     }
 
     // Adds a user mapping. The key must not already exist in the mapping.
-    function registerUser(string calldata userDIDID, string calldata userIPFSCID) external {
-        require(
-            bytes(_userDIDIDToUserIPFSCID[userDIDID]).length == 0,
-            "User DID ID already exists."
-        );
-
+    function registerUser(string calldata userDIDID, string calldata userIPFSCID) newUser(userDIDID) external {
         _userDIDIDToUserIPFSCID[userDIDID] = userIPFSCID;
         _userDIDIDToAddress[userDIDID] = msg.sender;
         emit UserRegistered(userDIDID, userIPFSCID);
     }
 
     // Updates a user mapping. The key must already exist in the mapping, and only the original calling address can update.
-    function updateUser(string calldata userDIDID, string calldata userIPFSCID) external {
-        require(
-            bytes(_userDIDIDToUserIPFSCID[userDIDID]).length != 0,
-            "User DID ID does not exist."
-        );
-
-        require(
-            msg.sender == _userDIDIDToAddress[userDIDID],
-            "Message sender is not DID ID owner."
-        );
-
+    function updateUser(string calldata userDIDID, string calldata userIPFSCID) updatesAllowed(userDIDID) external {
         _userDIDIDToUserIPFSCID[userDIDID] = userIPFSCID;
         emit UserRegistered(userDIDID, userIPFSCID);
     }
