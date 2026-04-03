@@ -34,18 +34,45 @@ contract DIDRegistry {
     // map user address to their DID ID
     mapping(address user => bytes32 userDIDID) private _userAddressToDIDID;
 
+    // Must own the contract
+    modifier onlyOwner {
+       require(
+            msg.sender == contractOwner,
+            "Only the contract owner can add trusted issuers."
+        ); 
+        _;
+    }
+
+    // User must not already exist
+    modifier newUser(bytes32 userDIDID) {
+        require(
+            _userDIDIDToUserIPFSCID[userDIDID] == bytes32(0),
+            "User DID ID already exists."
+        );
+        _;
+    }
+
+    // Must be able to update user
+    modifier canUpdate(bytes32 userDIDID) {
+        require(
+            _userDIDIDToUserIPFSCID[userDIDID] != bytes32(0),
+            "User DID ID does not exist."
+        );
+
+        require(
+            userDIDID == _userAddressToDIDID[msg.sender],
+            "Message sender is not DID ID owner."
+        );
+        _;
+    }
+
     // set deployer as contractOwner
     constructor() {
         contractOwner = msg.sender;
     }
 
     // Adds a trusted issuer mapping and address. Can only be called by the contract owner address.
-    function registerIssuer(address issuerAddress, bytes32 issuerDIDID, bytes32 issuerIPFSCID) external {
-        require(
-            msg.sender == contractOwner,
-            "Only the contract owner can add trusted issuers."
-        );
-
+    function registerIssuer(address issuerAddress, bytes32 issuerDIDID, bytes32 issuerIPFSCID) onlyOwner external {
         _issuerAddresses[issuerAddress] = true;
         _issuerDIDIDToIssuerIPFSCID[issuerDIDID] = issuerIPFSCID;
         emit IssuerRegistered(issuerDIDID, issuerIPFSCID);
@@ -62,29 +89,14 @@ contract DIDRegistry {
     }
 
     // Adds a user mapping. The key must not already exist in the mapping.
-    function registerUser(bytes32 userDIDID, bytes32 userIPFSCID) external {
-        require(
-            _userDIDIDToUserIPFSCID[userDIDID] == bytes32(0),
-            "User DID ID already exists."
-        );
-
+    function registerUser(bytes32 userDIDID, bytes32 userIPFSCID) newUser(userDIDID) external {
         _userDIDIDToUserIPFSCID[userDIDID] = userIPFSCID;
         _userAddressToDIDID[msg.sender] = userDIDID;
         emit UserRegistered(userDIDID, userIPFSCID);
     }
 
     // Updates a user mapping. The key must already exist in the mapping, and only the original calling address can update.
-    function updateUser(bytes32 userDIDID, bytes32 userIPFSCID) external {
-        require(
-            _userDIDIDToUserIPFSCID[userDIDID] != bytes32(0),
-            "User DID ID does not exist."
-        );
-
-        require(
-            userDIDID == _userAddressToDIDID[msg.sender],
-            "Message sender is not DID ID owner."
-        );
-
+    function updateUser(bytes32 userDIDID, bytes32 userIPFSCID) canUpdate(userDIDID) external {
         _userDIDIDToUserIPFSCID[userDIDID] = userIPFSCID;
         emit UserRegistered(userDIDID, userIPFSCID);
     }
