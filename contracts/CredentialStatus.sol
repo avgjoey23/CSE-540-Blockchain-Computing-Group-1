@@ -36,14 +36,8 @@ contract CredentialStatus {
     // map the VC hash to a credential status code
     mapping(bytes32 VCHash => CredentialStatusCode) private _VCHashToCredentialStatusCode;
 
-    // set deployer as contractOwner
-    constructor(address DIDRegistryAddress) {
-        contractOwner = msg.sender;
-        DIDRegistry = IDIDRegistry(DIDRegistryAddress);
-    }
-
-    // Issues rights to a VC hash. The VC hash must not exist. Can only be done by trusted issuer.
-    function issueCredential(bytes32 VCHash) external {
+    // Must be a new VC hash from a trusted issuer
+    modifier canIssue(bytes32 VCHash) {
         require(
             DIDRegistry.isTrustedIssuer(msg.sender),
             "Caller is not a registered trusted issuer."
@@ -53,14 +47,12 @@ contract CredentialStatus {
             _VCHashToCredentialStatusCode[VCHash] == CredentialStatusCode.DoesNotExist,
             "Credential already exists."
         );
-
-        _VCHashToCredentialStatusCode[VCHash] = CredentialStatusCode.Issued;
-        emit CredentialStatusChanged(VCHash, CredentialStatusCode.Issued);
+        _;
     }
 
-    // Revokes rights of a VC hash. The VC hash must be currently issued. Can only be done by trusted issuer.
-    function revokeCredential(bytes32 VCHash) external {
-        require(
+    // Existing VC hash can be revoked by trusted issuer
+    modifier canRevoke(bytes32 VCHash){
+         require(
             DIDRegistry.isTrustedIssuer(msg.sender),
             "Caller is not a registered trusted issuer."
         );
@@ -69,7 +61,23 @@ contract CredentialStatus {
             _VCHashToCredentialStatusCode[VCHash] == CredentialStatusCode.Issued,
             "Credential not issued."
         );
+        _;
+    }
 
+    // set deployer as contractOwner
+    constructor(address DIDRegistryAddress) {
+        contractOwner = msg.sender;
+        DIDRegistry = IDIDRegistry(DIDRegistryAddress);
+    }
+
+    // Issues rights to a VC hash. The VC hash must not exist. Can only be done by trusted issuer.
+    function issueCredential(bytes32 VCHash) canIssue(VCHash) external {
+        _VCHashToCredentialStatusCode[VCHash] = CredentialStatusCode.Issued;
+        emit CredentialStatusChanged(VCHash, CredentialStatusCode.Issued);
+    }
+
+    // Revokes rights of a VC hash. The VC hash must be currently issued. Can only be done by trusted issuer.
+    function revokeCredential(bytes32 VCHash) canRevoke(VCHash) external {
         _VCHashToCredentialStatusCode[VCHash] = CredentialStatusCode.Revoked;
         emit CredentialStatusChanged(VCHash, CredentialStatusCode.Revoked);
     }
