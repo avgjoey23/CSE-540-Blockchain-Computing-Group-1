@@ -1,5 +1,5 @@
 function Streamer1() {
-  return <div className="streamer">Streaming App 1</div>;
+  return <div className="streamer">blockazon</div>;
 }
 
 export default Streamer1

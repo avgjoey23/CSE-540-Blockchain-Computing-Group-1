@@ -23,7 +23,7 @@
 
 .carousel-track {
   position: relative;
-  height: clamp(440px, 36vw, 520px);
+  height: clamp(560px, 52vw, 680px);
   overflow: visible;
 }
 

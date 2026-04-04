@@ -17,22 +17,24 @@ import Carousel from './components/Carousel';
 // We can replace this with a data file or store it serverside
 // This is just filler content for the demo
 const MOVIES = [
-  { id: 1, title: "The Fast and the Furious", cover: ff1},
-  { id: 2, title: "2 Fast 2 Furious", cover: ff2},
-  { id: 3, title: "The Fast and the Furious: Tokyo Drift", cover: ff3},
-  { id: 4, title: "Fast & Furious", cover: ff4},
-  { id: 5, title: "Fast Five", cover: ff5},
-  { id: 6, title: "Fast & Furious 6", cover: ff6},
-  { id: 7, title: "Furious 7", cover: ff7},
-  { id: 8, title: "The Fate of the Furious", cover: ff8},
-  { id: 9, title: "F9: The Fast Saga", cover: ff9},
-  { id: 10, title: "Fast X", cover: ff10},
+  { id: 1, title: "The Fast and the Furious", owned: false, cover: ff1},
+  { id: 2, title: "2 Fast 2 Furious", owned: true, cover: ff2},
+  { id: 3, title: "The Fast and the Furious: Tokyo Drift", owned: false, cover: ff3},
+  { id: 4, title: "Fast & Furious", owned: false, cover: ff4},
+  { id: 5, title: "Fast Five", owned: false, cover: ff5},
+  { id: 6, title: "Fast & Furious 6", owned: true, cover: ff6},
+  { id: 7, title: "Furious 7", owned: false, cover: ff7},
+  { id: 8, title: "The Fate of the Furious", owned: false, cover: ff8},
+  { id: 9, title: "F9: The Fast Saga", owned: true, cover: ff9},
+  { id: 10, title: "Fast X", owned: false, cover: ff10},
 ]
 
 function App() {
   const [isToggled, setIsToggled] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  
+  const [currentMovie, setCurrentMovie] = useState(MOVIES[0]);
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+
   const toggle = () => setIsToggled(!isToggled);
 
   useEffect(() => {
@@ -59,11 +61,12 @@ function App() {
         </div>
       </nav>
       <main className="main">
-        <Carousel movies={MOVIES} />
-        <div className="movie-actions">
-          <button className="btn btn-purchase">Purchase</button>
-          <button className="btn btn-watch" onClick={() => setShowModal(true)}>Watch</button>
-        </div>
+        <Carousel
+          movies={MOVIES}
+          onWatch={() => setShowModal(true)}
+          onPurchase={() => setShowPurchaseModal(true)}
+          onMovieChange={setCurrentMovie}
+        />
         <div className='toggle-app'>
           <button className='btn btn-toggle' onClick={toggle}>Switch App</button>
         </div>
@@ -71,8 +74,22 @@ function App() {
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
-            <p>Sorry, please purchase this movie to watch it!</p>
+            <p>{currentMovie.owned
+              ? 'Enjoy the movie!'
+              : 'Sorry, please purchase this movie to watch it!'
+            }</p>
             <button className="btn btn-purchase" onClick={() => setShowModal(false)}>OK</button>
+          </div>
+        </div>
+      )}
+      {showPurchaseModal && (
+        <div className="modal-overlay" onClick={() => setShowPurchaseModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <p>Would you like to purchase {currentMovie.title}?</p>
+            <div className="modal-buttons">
+              <button className="btn btn-purchase" onClick={() => setShowPurchaseModal(false)}>Confirm</button>
+              <button className="btn btn-watch" onClick={() => setShowPurchaseModal(false)}>Cancel</button>
+            </div>
           </div>
         </div>
       )}
