@@ -83,6 +83,7 @@ This project is built upon the Ethereum blockchain.
 - Remix IDE
 - React Javascript library
 - Node.js
+- Ethers.js
 
 ## Project Deployment
 
