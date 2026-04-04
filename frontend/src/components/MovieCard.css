@@ -1,0 +1,74 @@
+/* Card container */
+.movie-card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  aspect-ratio: 2 / 3;
+  border-radius: 4px;
+  transition: transform 0.4s ease, width 0.4s ease, filter 0.4s ease, opacity 0.4s ease, margin-top 0.4s ease, box-shadow 0.4s ease;
+  transform-origin: center center;
+}
+
+.movie-card.center {
+  width: clamp(240px, 22vw, 280px);
+  margin-top: calc(clamp(240px, 22vw, 280px) * -0.75);
+  z-index: 2;
+  cursor: default;
+  box-shadow: 0 8px 32px var(--shadow-lg), 0 2px 8px var(--shadow-sm);
+}
+
+.movie-card.side {
+  width: 140px;
+  margin-top: -105px;
+  filter: grayscale(100%) blur(2px);
+  z-index: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 12px var(--shadow-sm);
+}
+
+.movie-card.side:hover {
+  opacity: 0.9 !important;
+}
+
+/* Cover image fills the card */
+.movie-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 4px;
+  background-color: #d0d4db;
+}
+
+/* Title overlay */
+.movie-title-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 24px 12px 12px;
+  background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%);
+  border-radius: 0 0 4px 4px;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.movie-card.center:hover .movie-title-overlay {
+  opacity: 1;
+}
+
+.movie-title-text {
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.9rem;
+  color: #ffffff;
+  display: block;
+  text-align: center;
+  letter-spacing: 0.03em;
+}
+
+/* Always show on mobile */
+@media (max-width: 768px) {
+  .movie-title-overlay {
+    opacity: 1;
+  }
+}
