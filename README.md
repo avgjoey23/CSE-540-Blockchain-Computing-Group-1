@@ -84,6 +84,7 @@ This project is built upon the Ethereum blockchain.
 - React Javascript library
 - Node.js
 - Ethers.js
+- Express.js
 
 ## Project Deployment
 
