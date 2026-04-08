@@ -3,7 +3,8 @@ const app = express();
 const bodyParser = require('body-parser')
 const PORT = 3000;
 const ethers = require('ethers');
-const ipfs = require('ipfs-storage');
+const credService = require('./services/credentialService');
+//const ipfs = require('ipfs-storage');
 
 let items = [
     {
@@ -45,6 +46,42 @@ app.get('/api/items/:id',(request,response) => {
 app.post('/api/items', (request,response) => {
     let payload = bodyParser.json(request.body);
     response.status(200).send(payload.name);
+});
+
+// Issue a credential
+app.post('/api/credentials/issue', async (req, res) => {
+    try {
+        const { vcHash } = req.body; // Extract vcHash from the request body
+        const tx = await credentialStatusService.issueCredential(vcHash);
+        res.status(200).json({ message: 'Credential issued successfully', transactionHash: tx.hash });
+    } catch (error) {
+        console.error('Error issuing credential:', error);
+        res.status(500).json({ error: 'Failed to issue credential' });
+    }
+});
+
+// Revoke a credential
+app.post('/api/credentials/revoke', async (req, res) => {
+    try {
+        const { vcHash } = req.body; // Extract vcHash from the request body
+        const tx = await credentialStatusService.revokeCredential(vcHash);
+        res.status(200).json({ message: 'Credential revoked successfully', transactionHash: tx.hash });
+    } catch (error) {
+        console.error('Error revoking credential:', error);
+        res.status(500).json({ error: 'Failed to revoke credential' });
+    }
+});
+
+// Get credential status code
+app.get('/api/credentials/status/:vcHash', async (req, res) => {
+    try {
+        const { vcHash } = req.params; // Extract vcHash from the URL parameter
+        const statusCode = await credentialStatusService.getCredentialStatusCode(vcHash);
+        res.status(200).json({ vcHash, statusCode });
+    } catch (error) {
+        console.error('Error getting credential status code:', error);
+        res.status(500).json({ error: 'Failed to get credential status code' });
+    }
 });
 
 /*
