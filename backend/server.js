@@ -4,6 +4,7 @@ const bodyParser = require('body-parser')
 const PORT = 3000;
 const ethers = require('ethers');
 const credService = require('./services/credentialService');
+const DIDRegistryService = require('./services/registryService');
 //const ipfs = require('ipfs-storage');
 
 let items = [
@@ -47,6 +48,70 @@ app.post('/api/items', (request,response) => {
     let payload = bodyParser.json(request.body);
     response.status(200).send(payload.name);
 });
+
+/* DID registry routes */
+
+// Register an Issuer (Only Owner)
+app.post('/api/did/register-issuer', async (req, res) => {
+    try {
+        const { address, did, cid } = req.body;
+        const tx = await DIDRegistryService.registerIssuer(address, did, cid);
+        res.status(200).json({ message: 'Issuer registered', transactionHash: tx.hash });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to register issuer (Owner only)' });
+    }
+});
+
+// Get Issuer IPFS CID
+app.get('/api/did/issuer/:did', async (req, res) => {
+    try {
+        const { did } = req.params;
+        const cid = await DIDRegistryService.getIssuerIPFSCID(did);
+        res.status(200).json({ issuerDIDID: did, ipfsCID: cid });
+    } catch (error) {
+        console.error('Error getting issuer CID:', error);
+        res.status(500).json({ error: 'Failed to get issuer CID' });
+    }
+});
+
+// Register a New User
+app.post('/api/did/register-user', async (req, res) => {
+    try {
+        const { userDIDID, userIPFSCID } = req.body;
+        const tx = await DIDRegistryService.registerUser(userDIDID, userIPFSCID);
+        res.status(200).json({ 
+            message: 'User registered successfully', 
+            transactionHash: tx.hash 
+        });
+    } catch (error) {
+        console.error('Error registering user:', error);
+        res.status(500).json({ error: 'Failed to register user' });
+    }
+});
+
+// Update an existing User
+app.post('/api/did/update-user', async (req, res) => {
+    try {
+        const { userDIDID, userIPFSCID } = req.body;
+        const tx = await DIDRegistryService.updateUser(userDIDID, userIPFSCID);
+        res.status(200).json({ message: 'User updated successfully', transactionHash: tx.hash });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update user' });
+    }
+});
+
+// Get User IPFS CID
+app.get('/api/did/user/:did', async (req, res) => {
+    try {
+        const { did } = req.params;
+        const cid = await DIDRegistryService.getUserIPFSCID(did);
+        res.status(200).json({ did, ipfsCID: cid });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to get user CID' });
+    }
+});
+
+/* credential status routes */
 
 // Issue a credential
 app.post('/api/credentials/issue', async (req, res) => {

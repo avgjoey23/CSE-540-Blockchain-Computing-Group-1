@@ -1,5 +1,6 @@
 // FILE: backend/services/credentialStatusService.js
 
+require('dotenv').config();
 const { ethers } = require("ethers");
 
 // Load environment variables for provider and contract details
