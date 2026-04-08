@@ -1,10 +1,41 @@
 import { useEffect, useState } from 'react'
 import Streamer1 from './components/Streamer1';
 import Streamer2 from './components/Streamer2';
+import ff1 from './assets/img/ff1.jpeg';
+import ff2 from './assets/img/ff2.jpg';
+import ff3 from './assets/img/ff3.jpg';
+import ff4 from './assets/img/ff4.jpg';
+import ff5 from './assets/img/ff5.jpg';
+import ff6 from './assets/img/ff6.jpg';
+import ff7 from './assets/img/ff7.jpg';
+import ff8 from './assets/img/ff8.jpg';
+import ff9 from './assets/img/ff9.jpg';
+import ff10 from './assets/img/ff10.jpg';
 import './App.css'
+import Carousel from './components/Carousel';
+
+// We can replace this with a data file or store it serverside
+// This is just filler content for the demo
+const MOVIES = [
+  { id: 1, title: "The Fast and the Furious", owned: false, cover: ff1},
+  { id: 2, title: "2 Fast 2 Furious", owned: true, cover: ff2},
+  { id: 3, title: "The Fast and the Furious: Tokyo Drift", owned: false, cover: ff3},
+  { id: 4, title: "Fast & Furious", owned: false, cover: ff4},
+  { id: 5, title: "Fast Five", owned: false, cover: ff5},
+  { id: 6, title: "Fast & Furious 6", owned: true, cover: ff6},
+  { id: 7, title: "Furious 7", owned: false, cover: ff7},
+  { id: 8, title: "The Fate of the Furious", owned: false, cover: ff8},
+  { id: 9, title: "F9: The Fast Saga", owned: true, cover: ff9},
+  { id: 10, title: "Fast X", owned: false, cover: ff10},
+]
 
 function App() {
-  const [isToggled, setIsToggled] = useState(false);
+  const [isToggled, setIsToggled] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [currentMovie, setCurrentMovie] = useState(MOVIES[0]);
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+
+  const toggle = () => setIsToggled(!isToggled);
 
   useEffect(() => {
     if (isToggled) {
@@ -15,19 +46,55 @@ function App() {
       document.documentElement.classList.add('light');
     }
   }, [isToggled])
-
-  const toggle = () => setIsToggled(!isToggled);
+  
+  
 
   return (
-    <>
-      <section id="center">
-        { isToggled ? <Streamer1 /> : <Streamer2/>}
-        <div className='toggle'>
-          <button className='toggle-btn' onClick={toggle}>Switch App</button>
+    <div className={`app ${isToggled ? "theme-dark" : "theme-light"}`}>
+      <nav className="navbar">
+        <div className='streamer'>
+          { isToggled ? <Streamer1 /> : <Streamer2 />}
         </div>
-      </section>
-    </>
-  )
+        <div className="profile-wrapper">
+          <div className="profile-circle" />
+          <span className="profile-tooltip">Your Wallet</span>
+        </div>
+      </nav>
+      <main className="main">
+        <Carousel
+          movies={MOVIES}
+          onWatch={() => setShowModal(true)}
+          onPurchase={() => setShowPurchaseModal(true)}
+          onMovieChange={setCurrentMovie}
+        />
+        <div className='toggle-app'>
+          <button className='btn btn-toggle' onClick={toggle}>Switch App</button>
+        </div>
+      </main>
+      {showModal && (
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <p>{currentMovie.owned
+              ? 'Enjoy the movie!'
+              : 'Sorry, please purchase this movie to watch it!'
+            }</p>
+            <button className="btn btn-purchase" onClick={() => setShowModal(false)}>OK</button>
+          </div>
+        </div>
+      )}
+      {showPurchaseModal && (
+        <div className="modal-overlay" onClick={() => setShowPurchaseModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <p>Would you like to purchase {currentMovie.title}?</p>
+            <div className="modal-buttons">
+              <button className="btn btn-purchase" onClick={() => setShowPurchaseModal(false)}>Confirm</button>
+              <button className="btn btn-watch" onClick={() => setShowPurchaseModal(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
 }
 

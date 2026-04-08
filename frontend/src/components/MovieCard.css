@@ -1,0 +1,103 @@
+/* Outer card container — no aspect-ratio, just positions and stacks children */
+.movie-card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transition: transform 0.4s ease, width 0.4s ease, filter 0.4s ease, opacity 0.4s ease, margin-top 0.4s ease, box-shadow 0.4s ease;
+  transform-origin: center center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.movie-card.center {
+  z-index: 2;
+  cursor: default;
+}
+
+.movie-card.side {
+  filter: grayscale(100%) blur(2px);
+  z-index: 1;
+  cursor: pointer;
+}
+
+.movie-card.side:hover {
+  opacity: 0.9 !important;
+}
+
+/* Cover wrapper carries the aspect-ratio and shadow */
+.movie-cover-wrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.movie-card.center .movie-cover-wrapper {
+  box-shadow: 0 8px 32px var(--shadow-lg), 0 2px 8px var(--shadow-sm);
+}
+
+.movie-card.side .movie-cover-wrapper {
+  box-shadow: 0 4px 12px var(--shadow-sm);
+}
+
+/* Cover image fills the wrapper */
+.movie-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  background-color: #d0d4db;
+}
+
+/* Title overlay — inside wrapper so it clips correctly */
+.movie-title-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 24px 12px 12px;
+  background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.movie-card.center:hover .movie-title-overlay {
+  opacity: 1;
+}
+
+.movie-owned-badge {
+  display: block;
+  text-align: center;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  color: #ffffff;
+  opacity: 0.85;
+}
+
+.movie-title-text {
+  font-family: var(--font-body, 'Raleway', sans-serif);
+  font-size: 1.2rem;
+  color: #ffffff;
+  display: block;
+  text-align: center;
+  letter-spacing: 0.03em;
+}
+
+/* Buttons below the cover */
+.movie-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+/* Always show overlay on mobile */
+@media (max-width: 768px) {
+  .movie-title-overlay {
+    opacity: 1;
+  }
+}
