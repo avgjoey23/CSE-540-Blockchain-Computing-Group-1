@@ -148,9 +148,11 @@ Steps:
 
 1. Install dependencies, run these commands in the terminal:
 
-   `cd backend && npm install`
-   `cd ../contracts && npm install`
-   `cd ../frontend && npm install`
+   ```
+   cd backend && npm install
+   cd ../contracts && npm install
+   cd ../frontend && npm install
+   ```
 
 2. Run the startup script to handle deploying contracts with HardHat, seeding test data, and starting the backend. Includes calls to `/contracts/scripts/deploy.ts` which handles stores contract address information in `/backend/config.js` for the server.
 
