@@ -83,10 +83,9 @@ contract CredentialStatus {
     }
 
     // Returns the current status code of a VC hash.
-    function getCredentialStatusCode(bytes32 VCHash) external returns(CredentialStatusCode) {
+    function getCredentialStatusCode(bytes32 VCHash) external view returns(CredentialStatusCode) {
         CredentialStatusCode status = _VCHashToCredentialStatusCode[VCHash];
-
-        emit CredentialStatusQueried(VCHash, status);
+        // emit CredentialStatusQueried(VCHash, status);
         return status;
     }
 }

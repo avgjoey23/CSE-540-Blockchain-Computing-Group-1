@@ -1,0 +1,174 @@
+[
+	{
+		"inputs": [],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "bytes32",
+				"name": "issuerDIDID",
+				"type": "bytes32"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes32",
+				"name": "issuerIPFSCID",
+				"type": "bytes32"
+			}
+		],
+		"name": "IssuerRegistered",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "issuerAddress",
+				"type": "address"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "issuerDIDID",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "issuerIPFSCID",
+				"type": "bytes32"
+			}
+		],
+		"name": "registerIssuer",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "userDIDID",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "userIPFSCID",
+				"type": "bytes32"
+			}
+		],
+		"name": "registerUser",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "userDIDID",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "userIPFSCID",
+				"type": "bytes32"
+			}
+		],
+		"name": "updateUser",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "bytes32",
+				"name": "userDIDID",
+				"type": "bytes32"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes32",
+				"name": "userIPFSCID",
+				"type": "bytes32"
+			}
+		],
+		"name": "UserRegistered",
+		"type": "event"
+	},
+	{
+		"inputs": [],
+		"name": "contractOwner",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "issuerDIDID",
+				"type": "bytes32"
+			}
+		],
+		"name": "getIssuerIPFSCID",
+		"outputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "userDIDID",
+				"type": "bytes32"
+			}
+		],
+		"name": "getUserIPFSCID",
+		"outputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "issuerAddress",
+				"type": "address"
+			}
+		],
+		"name": "isTrustedIssuer",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+]

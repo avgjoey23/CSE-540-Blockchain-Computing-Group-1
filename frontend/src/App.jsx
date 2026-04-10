@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ethers } from 'ethers';
 import Streamer1 from './components/Streamer1';
 import Streamer2 from './components/Streamer2';
 import ff1 from './assets/img/ff1.jpeg';
@@ -14,28 +15,34 @@ import ff10 from './assets/img/ff10.jpg';
 import './App.css'
 import Carousel from './components/Carousel';
 
-// We can replace this with a data file or store it serverside
-// This is just filler content for the demo
-const MOVIES = [
-  { id: 1, title: "The Fast and the Furious", owned: false, cover: ff1},
-  { id: 2, title: "2 Fast 2 Furious", owned: true, cover: ff2},
-  { id: 3, title: "The Fast and the Furious: Tokyo Drift", owned: false, cover: ff3},
-  { id: 4, title: "Fast & Furious", owned: false, cover: ff4},
-  { id: 5, title: "Fast Five", owned: false, cover: ff5},
-  { id: 6, title: "Fast & Furious 6", owned: true, cover: ff6},
-  { id: 7, title: "Furious 7", owned: false, cover: ff7},
-  { id: 8, title: "The Fate of the Furious", owned: false, cover: ff8},
-  { id: 9, title: "F9: The Fast Saga", owned: true, cover: ff9},
-  { id: 10, title: "Fast X", owned: false, cover: ff10},
-]
+const COVER_MAP = {
+    1: ff1, 2: ff2, 3: ff3, 4: ff4, 5: ff5,
+    6: ff6, 7: ff7, 8: ff8, 9: ff9, 10: ff10
+};
 
 function App() {
   const [isToggled, setIsToggled] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [currentMovie, setCurrentMovie] = useState(MOVIES[0]);
+  const [movies, setMovies] = useState([]);
+  const [currentMovie, setCurrentMovie] = useState(null);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [walletAddress, setWalletAddress] = useState(null);
 
   const toggle = () => setIsToggled(!isToggled);
+
+  useEffect(() => {
+    fetch('http://localhost:3000/api/movies')
+      .then(res => res.json())
+      .then(data => {
+        const covers = data.map(movie => ({
+          ...movie,
+          cover: COVER_MAP[movie.id]
+        }));
+        setMovies(covers);
+        setCurrentMovie(covers[0]);
+      })
+      .catch(err => console.error('Failed to fetch movies: ', err));
+  }, []);
 
   useEffect(() => {
     if (isToggled) {
@@ -45,9 +52,45 @@ function App() {
       document.documentElement.classList.remove('dark');
       document.documentElement.classList.add('light');
     }
-  }, [isToggled])
-  
-  
+  }, [isToggled]);
+
+  const connectWallet = async () => {
+    if (!window.ethereum) {
+      alert('MetaMask is not installed. Please install it to use this feature.');
+      return;
+    }
+    try {
+      const accounts = await window.ethereum.request({method: 'eth_requestAccounts'});
+      setWalletAddress(accounts[0]);
+    } catch (err) {
+      console.error('Wallet connection failed: ', err);
+    }
+  }
+
+  const handleWatch = async () => {
+    if (!walletAddress) {
+        alert('Please connect your wallet first.');
+        return;
+    }
+    try {
+        const vcHash = ethers.keccak256(
+            ethers.toUtf8Bytes(`${walletAddress}:movie:${currentMovie.id}`)
+        );
+        const res = await fetch('http://localhost:3000/api/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ walletAddress, vcHash })
+        });
+        const data = await res.json();
+        setCurrentMovie(prev => ({ ...prev, owned: data.verified }));
+        setShowModal(true);
+    } catch (err) {
+        console.error('Verification failed:', err);
+        alert('Verification failed, please try again.');
+    }
+  };
+
+  if (!movies.length || !currentMovie) return <div>Loading...</div>;
 
   return (
     <div className={`app ${isToggled ? "theme-dark" : "theme-light"}`}>
@@ -55,15 +98,20 @@ function App() {
         <div className='streamer'>
           { isToggled ? <Streamer1 /> : <Streamer2 />}
         </div>
-        <div className="profile-wrapper">
-          <div className="profile-circle" />
-          <span className="profile-tooltip">Your Wallet</span>
-        </div>
+        <div className="profile-wrapper" onClick={connectWallet} style={{ cursor: 'pointer' }}>
+        <div className={`profile-circle ${walletAddress ? 'connected' : ''}`} />
+        <span className="profile-tooltip">
+            {walletAddress
+                ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
+                : 'Connect Wallet'
+            }
+        </span>
+      </div>
       </nav>
       <main className="main">
         <Carousel
-          movies={MOVIES}
-          onWatch={() => setShowModal(true)}
+          movies={movies}
+          onWatch={handleWatch}
           onPurchase={() => setShowPurchaseModal(true)}
           onMovieChange={setCurrentMovie}
         />
