@@ -105,6 +105,106 @@ app.post('/api/items', (request,response) => {
     response.status(200).send(payload.name);
 });
 
+/* DID registry routes */
+
+// Register an Issuer (Only Owner)
+app.post('/api/did/register-issuer', async (req, res) => {
+    try {
+        const { address, did, cid } = req.body;
+        const tx = await DIDRegistryService.registerIssuer(address, did, cid);
+        res.status(200).json({ message: 'Issuer registered', transactionHash: tx.hash });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to register issuer (Owner only)' });
+    }
+});
+
+// Get Issuer IPFS CID
+app.get('/api/did/issuer/:did', async (req, res) => {
+    try {
+        const { did } = req.params;
+        const cid = await DIDRegistryService.getIssuerIPFSCID(did);
+        res.status(200).json({ issuerDIDID: did, ipfsCID: cid });
+    } catch (error) {
+        console.error('Error getting issuer CID:', error);
+        res.status(500).json({ error: 'Failed to get issuer CID' });
+    }
+});
+
+// Register a New User
+app.post('/api/did/register-user', async (req, res) => {
+    try {
+        const { userDIDID, userIPFSCID } = req.body;
+        const tx = await DIDRegistryService.registerUser(userDIDID, userIPFSCID);
+        res.status(200).json({ 
+            message: 'User registered successfully', 
+            transactionHash: tx.hash 
+        });
+    } catch (error) {
+        console.error('Error registering user:', error);
+        res.status(500).json({ error: 'Failed to register user' });
+    }
+});
+
+// Update an existing User
+app.post('/api/did/update-user', async (req, res) => {
+    try {
+        const { userDIDID, userIPFSCID } = req.body;
+        const tx = await DIDRegistryService.updateUser(userDIDID, userIPFSCID);
+        res.status(200).json({ message: 'User updated successfully', transactionHash: tx.hash });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update user' });
+    }
+});
+
+// Get User IPFS CID
+app.get('/api/did/user/:did', async (req, res) => {
+    try {
+        const { did } = req.params;
+        const cid = await DIDRegistryService.getUserIPFSCID(did);
+        res.status(200).json({ did, ipfsCID: cid });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to get user CID' });
+    }
+});
+
+/* credential status routes */
+
+// Issue a credential
+app.post('/api/credentials/issue', async (req, res) => {
+    try {
+        const { vcHash } = req.body; // Extract vcHash from the request body
+        const tx = await credentialStatusService.issueCredential(vcHash);
+        res.status(200).json({ message: 'Credential issued successfully', transactionHash: tx.hash });
+    } catch (error) {
+        console.error('Error issuing credential:', error);
+        res.status(500).json({ error: 'Failed to issue credential' });
+    }
+});
+
+// Revoke a credential
+app.post('/api/credentials/revoke', async (req, res) => {
+    try {
+        const { vcHash } = req.body; // Extract vcHash from the request body
+        const tx = await credentialStatusService.revokeCredential(vcHash);
+        res.status(200).json({ message: 'Credential revoked successfully', transactionHash: tx.hash });
+    } catch (error) {
+        console.error('Error revoking credential:', error);
+        res.status(500).json({ error: 'Failed to revoke credential' });
+    }
+});
+
+// Get credential status code
+app.get('/api/credentials/status/:vcHash', async (req, res) => {
+    try {
+        const { vcHash } = req.params; // Extract vcHash from the URL parameter
+        const statusCode = await credentialStatusService.getCredentialStatusCode(vcHash);
+        res.status(200).json({ vcHash, statusCode });
+    } catch (error) {
+        console.error('Error getting credential status code:', error);
+        res.status(500).json({ error: 'Failed to get credential status code' });
+    }
+});
+
 /*
 * Start Server
 */
