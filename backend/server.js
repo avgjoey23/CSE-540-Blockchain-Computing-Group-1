@@ -11,6 +11,8 @@ const { DID_REGISTRY_ADDRESS, CREDENTIAL_STATUS_ADDRESS, RPC_URL } = require('./
 const DIDRegistryABI = require('./abi/DIDRegistry.json');
 const CredentialStatusABI = require('./abi/CredentialStatus.json');
 
+const IPFSService = require('./services/IPFSService');
+
 app.use(bodyParser.json());
 
 // connect to contracts info
@@ -236,6 +238,28 @@ app.get('/api/credentials/status/:vcHash', async (req, res) => {
     } catch (error) {
         console.error('Error getting credential status code:', error);
         res.status(500).json({ error: 'Failed to get credential status code' });
+    }
+});
+
+/* IPFS service routes */
+
+// Endpoint to Store
+app.post('/api/IPFS', async (req, res) => {
+    try {
+        const cid = await IPFSService.storeJSON(req.body);
+        res.status(201).json({ success: true, cid });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Endpoint to Retrieve
+app.get('/api/IPFS/:cid', async (req, res) => {
+    try {
+        const data = await IPFSService.getJSON(req.params.cid);
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(404).json({ success: false, error: "Content not found" });
     }
 });
 

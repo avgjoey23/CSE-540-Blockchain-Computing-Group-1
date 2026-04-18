@@ -141,6 +141,7 @@ TODO: IPFS data is public, how do we make sure only the athenticated user can ac
 - Remix IDE
 - React Javascript library
 - Node.js
+- Pinata SDK
 
 ## Project Deployment
 
