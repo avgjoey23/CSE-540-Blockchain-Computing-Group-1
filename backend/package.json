@@ -13,6 +13,7 @@
     "express": "^5.2.1"
   },
   "dependencies": {
+    "@pinata/sdk": "^2.1.0",
     "cors": "^2.8.6",
     "ethers": "^6.16.0",
     "ipfs-storage": "^2.0.0"
