@@ -1,7 +1,9 @@
+import { Routes, Route, useNavigate } from 'react-router-dom';
+import WatchMovie from './screens/WatchMovie.jsx';
 import { useEffect, useState } from 'react'
 import { ethers } from 'ethers';
-import Streamer1 from './components/Streamer1';
-import Streamer2 from './components/Streamer2';
+import Blockazon from './components/Blockazon';
+import ChainTv from './components/ChainTv';
 import ff1 from './assets/img/ff1.jpeg';
 import ff2 from './assets/img/ff2.jpg';
 import ff3 from './assets/img/ff3.jpg';
@@ -26,9 +28,12 @@ function App() {
   const [movies, setMovies] = useState([]);
   const [currentMovie, setCurrentMovie] = useState(null);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
-  const [walletAddress, setWalletAddress] = useState(null);
+  const [blockazonWallet, setBlockazonWallet] = useState(null);
+  const [chainTvWallet, setChainTvWallet] = useState(null);
 
   const toggle = () => setIsToggled(!isToggled);
+  const navigate = useNavigate();
+  const walletAddress = isToggled ? blockazonWallet : chainTvWallet;
 
   useEffect(() => {
     fetch('http://localhost:3000/api/movies')
@@ -56,16 +61,53 @@ function App() {
 
   const connectWallet = async () => {
     if (!window.ethereum) {
-      alert('MetaMask is not installed. Please install it to use this feature.');
-      return;
+        alert('MetaMask is not installed. Please install it to use this feature.');
+        return;
     }
     try {
-      const accounts = await window.ethereum.request({method: 'eth_requestAccounts'});
-      setWalletAddress(accounts[0]);
+        const accounts = await window.ethereum.request({method: 'eth_requestAccounts'});
+        if (isToggled) {
+            setBlockazonWallet(accounts[0]);
+        } else {
+            setChainTvWallet(accounts[0]);
+        }
     } catch (err) {
-      console.error('Wallet connection failed: ', err);
+        console.error('Wallet connection failed: ', err);
     }
-  }
+}
+
+  const handlePurchase = async () => {
+      if (!walletAddress) {
+          alert('Please connect your wallet first.');
+          return;
+      }
+      try {
+          const res = await fetch('http://localhost:3000/api/purchase', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ walletAddress, movieId: currentMovie.id })
+          });
+          const data = await res.json();
+
+          if (data.success) {
+              setMovies(prev => prev.map(m =>
+                  m.id === currentMovie.id ? { ...m, owned: true } : m
+              ));
+              setCurrentMovie(prev => ({ ...prev, owned: true }));
+              alert(`You now own ${currentMovie.title}!`);
+          } else if (data.error === 'AlreadyOwned') {
+              alert('You already own this movie!');
+          } else if (data.error === 'UserNotFound') {
+              alert('Your wallet is not registered. Please register before purchasing.');
+          } else {
+              alert('Purchase failed, please try again.');
+          }
+      } catch (err) {
+          console.error('Purchase failed:', err);
+          alert('Purchase failed, please try again.');
+      }
+      setShowPurchaseModal(false);
+  };
 
   const handleWatch = async () => {
     if (!walletAddress) {
@@ -82,8 +124,11 @@ function App() {
             body: JSON.stringify({ walletAddress, vcHash })
         });
         const data = await res.json();
-        setCurrentMovie(prev => ({ ...prev, owned: data.verified }));
-        setShowModal(true);
+        if (data.verified) {
+          navigate('/watch', { state: { movie: currentMovie, theme: isToggled ? 'theme-dark' : 'theme-light' } });
+        } else {
+          setShowModal(true);
+        }
     } catch (err) {
         console.error('Verification failed:', err);
         alert('Verification failed, please try again.');
@@ -93,55 +138,66 @@ function App() {
   if (!movies.length || !currentMovie) return <div>Loading...</div>;
 
   return (
-    <div className={`app ${isToggled ? "theme-dark" : "theme-light"}`}>
-      <nav className="navbar">
-        <div className='streamer'>
-          { isToggled ? <Streamer1 /> : <Streamer2 />}
-        </div>
-        <div className="profile-wrapper" onClick={connectWallet} style={{ cursor: 'pointer' }}>
-        <div className={`profile-circle ${walletAddress ? 'connected' : ''}`} />
-        <span className="profile-tooltip">
-            {walletAddress
-                ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
-                : 'Connect Wallet'
-            }
-        </span>
-      </div>
-      </nav>
-      <main className="main">
-        <Carousel
-          movies={movies}
-          onWatch={handleWatch}
-          onPurchase={() => setShowPurchaseModal(true)}
-          onMovieChange={setCurrentMovie}
-        />
-        <div className='toggle-app'>
-          <button className='btn btn-toggle' onClick={toggle}>Switch App</button>
-        </div>
-      </main>
-      {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <p>{currentMovie.owned
-              ? 'Enjoy the movie!'
-              : 'Sorry, please purchase this movie to watch it!'
-            }</p>
-            <button className="btn btn-purchase" onClick={() => setShowModal(false)}>OK</button>
-          </div>
-        </div>
-      )}
-      {showPurchaseModal && (
-        <div className="modal-overlay" onClick={() => setShowPurchaseModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <p>Would you like to purchase {currentMovie.title}?</p>
-            <div className="modal-buttons">
-              <button className="btn btn-purchase" onClick={() => setShowPurchaseModal(false)}>Confirm</button>
-              <button className="btn btn-watch" onClick={() => setShowPurchaseModal(false)}>Cancel</button>
+    <Routes>
+      <Route path="/watch" element={<WatchMovie />} />
+      <Route path="/" element={
+        <div className={`app ${isToggled ? "theme-dark" : "theme-light"}`}>
+          <nav className="navbar">
+            <div className='streamer'>
+              { isToggled ? <Blockazon /> : <ChainTv />}
             </div>
+            <div className="profile-wrapper" onClick={connectWallet} style={{ cursor: 'pointer' }}>
+            <div className={`profile-circle ${walletAddress ? 'connected' : ''}`} />
+            <span className="profile-tooltip">
+                {walletAddress
+                    ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
+                    : 'Connect Wallet'
+                }
+            </span>
           </div>
+          </nav>
+          <main className="main">
+            <Carousel
+              movies={movies}
+              onWatch={handleWatch}
+              onPurchase={() => {
+                if (!walletAddress) {
+                  alert('Please connect your wallet first.');
+                  return;
+                }
+                setShowPurchaseModal(true);
+              }}
+              onMovieChange={setCurrentMovie}
+            />
+            <div className='toggle-app'>
+              <button className='btn btn-toggle' onClick={toggle}>Switch App</button>
+            </div>
+          </main>
+          {showModal && (
+            <div className="modal-overlay" onClick={() => setShowModal(false)}>
+              <div className="modal" onClick={e => e.stopPropagation()}>
+                <p>{currentMovie.owned
+                  ? 'Enjoy the movie!'
+                  : 'Sorry, please purchase this movie to watch it!'
+                }</p>
+                <button className="btn btn-purchase" onClick={() => setShowModal(false)}>OK</button>
+              </div>
+            </div>
+          )}
+          {showPurchaseModal && (
+            <div className="modal-overlay" onClick={() => setShowPurchaseModal(false)}>
+              <div className="modal" onClick={e => e.stopPropagation()}>
+                <p>Would you like to purchase {currentMovie.title}?</p>
+                <div className="modal-buttons">
+                  <button className="btn btn-purchase" onClick={handlePurchase}>Confirm</button>
+                  <button className="btn btn-watch" onClick={() => setShowPurchaseModal(false)}>Cancel</button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      )}
-    </div>
+      } />
+    </Routes>
   );
 
 }
