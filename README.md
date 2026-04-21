@@ -155,7 +155,7 @@ Steps:
    cd ../frontend && npm install
    ```
 
-2. Run the startup script to handle deploying contracts with HardHat, seeding test data, and starting the backend. Includes calls to `/contracts/scripts/deploy.ts` which handles stores contract address information in `/backend/config.js` for the server.
+2. Run the startup script to handle deploying contracts with HardHat, seeding test data, and starting the backend. Includes calls to `/contracts/scripts/deploy.ts` which stores contract address information in `/backend/config.js` for the server.
 
    `./start.sh`
 
