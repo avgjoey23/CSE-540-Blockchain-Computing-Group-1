@@ -12,6 +12,7 @@ const DIDRegistryABI = require('./abi/DIDRegistry.json');
 const CredentialStatusABI = require('./abi/CredentialStatus.json');
 
 const IPFSService = require('./services/IPFSService');
+const cryptoService = require('./services/cryptoService');
 
 app.use(bodyParser.json());
 
@@ -262,6 +263,20 @@ app.get('/api/IPFS/:cid', async (req, res) => {
         res.status(404).json({ success: false, error: "Content not found" });
     }
 });
+
+
+/* Crypto service routes */
+
+// Endpoint to generate and store DID document
+app.post('/api/generateDID', async (req, res) => {
+    try {
+        const data = await cryptoService.generateDID();
+        res.status(201).json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 
 /*
 * Start Server
