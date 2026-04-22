@@ -28,7 +28,7 @@ const IPFSService = {
      */
     async getJSON(cid) {
         try {
-            const gateway = process.env.PINATA_GATEWAY || 'https://pinata.cloud';
+            const gateway = process.env.PINATA_GATEWAY;
             const response = await fetch(`${gateway}/ipfs/${cid}`);
 
             if (!response.ok) throw new Error('Failed to fetch from IPFS');

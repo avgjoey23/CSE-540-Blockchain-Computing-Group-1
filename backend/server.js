@@ -12,6 +12,7 @@ const DIDRegistryABI = require('./abi/DIDRegistry.json');
 const CredentialStatusABI = require('./abi/CredentialStatus.json');
 
 const IPFSService = require('./services/IPFSService');
+const cryptoService = require('./services/cryptoService');
 
 app.use(bodyParser.json());
 
@@ -260,6 +261,61 @@ app.get('/api/IPFS/:cid', async (req, res) => {
         res.json({ success: true, data });
     } catch (error) {
         res.status(404).json({ success: false, error: "Content not found" });
+    }
+});
+
+
+/* Crypto service routes */
+
+// Endpoint to generate and store DID document
+app.post('/api/generateDID', async (req, res) => {
+    try {
+        const data = await cryptoService.generateDID();
+        res.status(201).json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Endpoint to generate a VC
+app.post('/api/generateVC', async (req, res) => {
+    try {
+        const { issuerDid, issuerPrivKey, userDid, productId } = req.body;
+
+        if (!issuerDid || !issuerPrivKey || !userDid || !productId) {
+            return res.status(400).json({ 
+                success: false, 
+                error: "Missing required fields: issuerDid, issuerPrivKey, userDid, or productId" 
+            });
+        }
+
+        const data = await cryptoService.generateVC(
+            issuerDid, 
+            issuerPrivKey, 
+            userDid, 
+            productId
+        );
+
+        res.status(201).json({ success: true, data });
+    } catch (error) {
+        console.error("Route Error:", error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Endpoint to verify a signed VC
+app.post('/api/verifyVC', async (req, res) => {
+    try {
+        const { signedVC } = req.body;
+        
+        if (!signedVC) {
+            return res.status(400).json({ success: false, error: "Missing VC object" });
+        }
+
+        const data = await cryptoService.verifyVC(signedVC);
+        res.status(200).json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 
