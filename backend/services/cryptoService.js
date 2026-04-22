@@ -112,6 +112,42 @@ const cryptoService = {
             console.error("Error issuing or storing VC:", error);
             throw error;
         }
+    },
+
+    /**
+     * @param {Object} signedVC - The signed VC object
+     * @returns {Boolean} - True if the VC is verified
+     * This verify is not crypto secure, there are issues with the verification library
+     * Using this for now just as a basic check that a VC is valid
+     */
+    async verifyVC(signedVC) {
+        try {
+	    //check for the document and proof section
+            if (!signedVC || !signedVC.proof) {
+                throw new Error("Document is missing a proof section");
+            }
+           
+	    // check for a signature
+            const signature = signedVC.proof.proofValue;
+
+            if (!signature) {
+                throw new Error("Missing 'proofValue' in proof object");
+            }
+
+            // ensure the issuer matches the person who created the proof
+            const issuerDid = signedVC.issuer;
+            const verificationMethod = signedVC.proof.verificationMethod;
+
+            if (!verificationMethod.includes(issuerDid)) {
+                throw new Error("Issuer DID mismatch");
+            }
+
+            return true;
+
+        } catch (error) {
+            console.error("Verification failed:", error.message);
+            return false;
+        }
     }
 };
 

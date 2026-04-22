@@ -303,6 +303,22 @@ app.post('/api/generateVC', async (req, res) => {
     }
 });
 
+// Endpoint to verify a signed VC
+app.post('/api/verifyVC', async (req, res) => {
+    try {
+        const { signedVC } = req.body;
+        
+        if (!signedVC) {
+            return res.status(400).json({ success: false, error: "Missing VC object" });
+        }
+
+        const data = await cryptoService.verifyVC(signedVC);
+        res.status(200).json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 /*
 * Start Server
 */
