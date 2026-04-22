@@ -277,6 +277,31 @@ app.post('/api/generateDID', async (req, res) => {
     }
 });
 
+// Endpoint to generate a VC
+app.post('/api/generateVC', async (req, res) => {
+    try {
+        const { issuerDid, issuerPrivKey, userDid, productId } = req.body;
+
+        if (!issuerDid || !issuerPrivKey || !userDid || !productId) {
+            return res.status(400).json({ 
+                success: false, 
+                error: "Missing required fields: issuerDid, issuerPrivKey, userDid, or productId" 
+            });
+        }
+
+        const data = await cryptoService.generateVC(
+            issuerDid, 
+            issuerPrivKey, 
+            userDid, 
+            productId
+        );
+
+        res.status(201).json({ success: true, data });
+    } catch (error) {
+        console.error("Route Error:", error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
 
 /*
 * Start Server

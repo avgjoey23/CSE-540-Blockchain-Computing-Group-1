@@ -13,9 +13,12 @@
     "express": "^5.2.1"
   },
   "dependencies": {
+    "@digitalbazaar/security-document-loader": "^3.2.0",
     "@digitalcredentials/did-method-key": "^3.0.0",
     "@digitalcredentials/ed25519-multikey": "^1.4.0",
+    "@digitalcredentials/ed25519-signature-2020": "^7.0.0",
     "@digitalcredentials/ed25519-verification-key-2020": "^5.0.0",
+    "@digitalcredentials/vc": "^10.0.2",
     "@pinata/sdk": "^2.1.0",
     "cors": "^2.8.6",
     "ethers": "^6.16.0",
