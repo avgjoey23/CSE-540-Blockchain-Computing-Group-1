@@ -24,7 +24,7 @@ const cryptoService = {
     /**
      * Generate a DID document and store it to IPFS
      * @param {Object} data - The JSON object from your frontend
-     * @returns the DID ID and the private key
+     * @returns the DID ID, CID of the full document, and the private key
      */
     async generateDID() {
         try {
@@ -117,10 +117,41 @@ const cryptoService = {
     /**
      * @param {Object} signedVC - The signed VC object
      * @returns {Boolean} - True if the VC is verified
+     */
+    async verifyVC(signedVC) {
+	try {
+            if (!signedVC) {
+		throw new Error("No VC provided");
+	    }
+
+	    const documentLoader = loader.build();
+
+            // this verifies that the credential is correctly signed
+	    const result = await vc.verifyCredential({
+	        credential: signedVC,
+	        suite: new Ed25519Signature2020(),
+		documentLoader
+	    });
+
+	    if (!result.verified) {
+                return false;
+	    }
+
+	    return true;
+
+	} catch (error) {
+	    console.error("Error verifying the VC:", error);
+	    return false;
+	}
+    },
+
+    /**
+     * @param {Object} signedVC - The signed VC object
+     * @returns {Boolean} - True if the VC is verified
      * This verify is not crypto secure, there are issues with the verification library
      * Using this for now just as a basic check that a VC is valid
      */
-    async verifyVC(signedVC) {
+    async checkVC(signedVC) {
         try {
 	    //check for the document and proof section
             if (!signedVC || !signedVC.proof) {
