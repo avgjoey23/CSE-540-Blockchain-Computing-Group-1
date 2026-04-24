@@ -30,11 +30,13 @@ function App() {
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [blockazonWallet, setBlockazonWallet] = useState(null);
   const [chainTvWallet, setChainTvWallet] = useState(null);
+  const [notification, setNotification] = useState(null);
 
   const toggle = () => setIsToggled(!isToggled);
+  const notify = (message) => setNotification(message);
   const navigate = useNavigate();
   const walletAddress = isToggled ? blockazonWallet : chainTvWallet;
-
+  
   useEffect(() => {
     fetch('http://localhost:3000/api/movies')
       .then(res => res.json())
@@ -61,7 +63,7 @@ function App() {
 
   const connectWallet = async () => {
     if (!window.ethereum) {
-        alert('MetaMask is not installed. Please install it to use this feature.');
+        notify('MetaMask is not installed. Please install it to use this feature.');
         return;
     }
     try {
@@ -78,14 +80,15 @@ function App() {
 
   const handlePurchase = async () => {
       if (!walletAddress) {
-          alert('Please connect your wallet first.');
+          notify('Please connect your wallet first.');
           return;
       }
       try {
           const res = await fetch('http://localhost:3000/api/purchase', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ walletAddress, movieId: currentMovie.id })
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ walletAddress, movieId: currentMovie.id })
           });
           const data = await res.json();
 
@@ -94,46 +97,45 @@ function App() {
                   m.id === currentMovie.id ? { ...m, owned: true } : m
               ));
               setCurrentMovie(prev => ({ ...prev, owned: true }));
-              alert(`You now own ${currentMovie.title}!`);
+              notify(`You now own ${currentMovie.title}!`);
           } else if (data.error === 'AlreadyOwned') {
-              alert('You already own this movie!');
+              notify('You already own this movie!');
           } else if (data.error === 'UserNotFound') {
-              alert('Your wallet is not registered. Please register before purchasing.');
+              notify('Your wallet is not registered. Please register before purchasing.');
           } else {
-              alert('Purchase failed, please try again.');
+              notify('Purchase failed, please try again.');
           }
       } catch (err) {
           console.error('Purchase failed:', err);
-          alert('Purchase failed, please try again.');
+          notify('Purchase failed, please try again.');
       }
       setShowPurchaseModal(false);
   };
 
   const handleWatch = async () => {
     if (!walletAddress) {
-        alert('Please connect your wallet first.');
+        notify('Please connect your wallet first.');
         return;
     }
     try {
-        const vcHash = ethers.keccak256(
-            ethers.toUtf8Bytes(`${walletAddress}:movie:${currentMovie.id}`)
-        );
         const res = await fetch('http://localhost:3000/api/verify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ walletAddress, vcHash })
+            credentials: 'include',
+            body: JSON.stringify({ walletAddress, movieId: currentMovie.id })
         });
         const data = await res.json();
+        console.log('Verify response:', data);
         if (data.verified) {
-          navigate('/watch', { state: { movie: currentMovie, theme: isToggled ? 'theme-dark' : 'theme-light' } });
+            navigate('/watch', { state: { movie: currentMovie, theme: isToggled ? 'theme-dark' : 'theme-light' } });
         } else {
-          setShowModal(true);
+            setShowModal(true);
         }
     } catch (err) {
         console.error('Verification failed:', err);
-        alert('Verification failed, please try again.');
+        notify('Verification failed, please try again.');
     }
-  };
+};
 
   if (!movies.length || !currentMovie) return <div>Loading...</div>;
 
@@ -147,7 +149,11 @@ function App() {
               { isToggled ? <Blockazon /> : <ChainTv />}
             </div>
             <div className="profile-wrapper" onClick={connectWallet} style={{ cursor: 'pointer' }}>
-            <div className={`profile-circle ${walletAddress ? 'connected' : ''}`} />
+            <div className={`profile-circle ${walletAddress ? 'connected' : ''}`}>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
+              </svg>
+            </div>
             <span className="profile-tooltip">
                 {walletAddress
                     ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
@@ -162,7 +168,7 @@ function App() {
               onWatch={handleWatch}
               onPurchase={() => {
                 if (!walletAddress) {
-                  alert('Please connect your wallet first.');
+                  notify('Please connect your wallet first.');
                   return;
                 }
                 setShowPurchaseModal(true);
@@ -192,6 +198,14 @@ function App() {
                   <button className="btn btn-purchase" onClick={handlePurchase}>Confirm</button>
                   <button className="btn btn-watch" onClick={() => setShowPurchaseModal(false)}>Cancel</button>
                 </div>
+              </div>
+            </div>
+          )}
+          {notification && (
+            <div className="modal-overlay" onClick={() => setNotification(null)}>
+              <div className="modal" onClick={e => e.stopPropagation()}>
+                <p>{notification}</p>
+                <button className="btn btn-purchase" onClick={() => setNotification(null)}>OK</button>
               </div>
             </div>
           )}

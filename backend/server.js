@@ -1,29 +1,84 @@
+require('dotenv').config();
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
 const PORT = 3000;
 const ethers = require('ethers');
-const ipfs = require('ipfs-storage');
 const cors = require('cors');
-app.use(cors());
-const { DID_REGISTRY_ADDRESS, CREDENTIAL_STATUS_ADDRESS, RPC_URL } = require('./config');
+const session = require('express-session');
+const bs58 = require('bs58');
 
+const { DID_REGISTRY_ADDRESS, CREDENTIAL_STATUS_ADDRESS, RPC_URL } = require('./config');
 const DIDRegistryABI = require('./abi/DIDRegistry.json');
 const CredentialStatusABI = require('./abi/CredentialStatus.json');
 
 const IPFSService = require('./services/IPFSService');
 const cryptoService = require('./services/cryptoService');
+const DIDRegistryService = require('./services/registryService');
+const credentialStatusService = require('./services/credentialService');
 
+app.use(cors({
+    origin: 'http://localhost:5173',
+    credentials: true
+}));
 app.use(bodyParser.json());
+app.use(session({
+    secret: 'blockazon-session-secret',
+    resave: false,
+    saveUninitialized: false,
+    cookie: { secure: false }
+}));
 
-// connect to contracts info
+// connect to contracts
 const provider = new ethers.JsonRpcProvider(RPC_URL, undefined, { staticNetwork: true });
 const ISSUER_PRIVATE_KEY = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
 const issuerWallet = new ethers.Wallet(ISSUER_PRIVATE_KEY, provider);
 
-// creates contract instances
+// contract instances
 const didRegistry = new ethers.Contract(DID_REGISTRY_ADDRESS, DIDRegistryABI, provider);
 const credentialStatus = new ethers.Contract(CREDENTIAL_STATUS_ADDRESS, CredentialStatusABI, provider);
+
+// platform DID — generated once on startup
+let platformDID = null;
+let platformPrivateKey = null;
+
+// Strips the 0x1220 prefix from a base58 IPFS CID for storage in the contract as bytes32
+const cidToBytes32 = (cid) => {
+    const decoded = bs58.decode(cid);
+    const withoutPrefix = decoded.slice(2);
+    return ethers.hexlify(withoutPrefix);
+};
+
+// Adds the 0x1220 prefix back to a bytes32 hex string to reconstruct the base58 CID
+const bytes32ToCid = (bytes32hex) => {
+    const hex = bytes32hex.startsWith('0x') ? bytes32hex.slice(2) : bytes32hex;
+    const prefixed = Buffer.from('1220' + hex, 'hex');
+    return bs58.encode(prefixed);
+};
+
+const initializePlatform = async () => {
+    try {
+        const result = await cryptoService.generateDID();
+        platformDID = result.did;
+        platformPrivateKey = result.privateKey;
+
+        const cidBytes32 = cidToBytes32(result.cid);
+        const didIDHash = ethers.keccak256(ethers.toUtf8Bytes(platformDID));
+
+        const tx = await didRegistry.connect(issuerWallet).registerIssuer(
+            await issuerWallet.getAddress(),
+            didIDHash,
+            cidBytes32
+        );
+        await tx.wait();
+
+        console.log(`Platform DID initialized: ${platformDID}`);
+        console.log(`Platform registered as issuer on DIDRegistry`);
+    } catch (err) {
+        console.error('Failed to initialize platform DID:', err);
+        process.exit(1);
+    }
+};
 
 const MOVIES = [
     { id: 1, title: "The Fast and the Furious" },
@@ -39,34 +94,92 @@ const MOVIES = [
 ];
 
 /*
- * Define routes
+ * Movie routes
  */
 
 app.get('/api/movies', (req, res) => {
     res.json(MOVIES);
 });
 
-/* Verify user has access to movie
- *
- * input: { walletAddress: string, vcHash: string }
- * return: { verified: boolean, status: string }
+/*
+ * Register a user's wallet — generates a DID and registers it on chain
+ * input: { walletAddress: string }
+ * return: { success: boolean, did: string }
  */
-app.post('/api/verify', async (req, res) => {
-    const { walletAddress, vcHash } = req.body;
+app.post('/api/register', async (req, res) => {
+    const { walletAddress } = req.body;
 
-    if (!walletAddress || !vcHash) {
-        return res.status(400).json({ error: 'Wallet address and VC Hash are required.' });
+    if (!walletAddress) {
+        return res.status(400).json({ error: 'walletAddress is required.' });
     }
 
     try {
-        // Check the credential status — returns 0 (DoesNotExist), 1 (Issued), or 2 (Revoked)
-        const statusCode = await credentialStatus.getCredentialStatusCode(vcHash);
+        // Generate DID and store document on IPFS
+        const result = await cryptoService.generateDID();
+        const userDID = result.did;
+        const userPrivateKey = result.privateKey;
+
+        // Convert CID and hash DID ID for contract storage
+        const cidBytes32 = cidToBytes32(result.cid);
+        const didIDHash = ethers.keccak256(ethers.toUtf8Bytes(userDID));
+
+        // Register user on DIDRegistry — signed by issuer wallet on behalf of user
+        const tx = await didRegistry.connect(issuerWallet).registerUser(
+            didIDHash,
+            cidBytes32
+        );
+        await tx.wait();
+
+        // Store DID and private key in session keyed by wallet address
+        if (!req.session.users) req.session.users = {};
+        req.session.users[walletAddress] = { did: userDID, privateKey: userPrivateKey };
+
+        return res.status(200).json({ success: true, did: userDID });
+
+    } catch (err) {
+        console.error('Registration error:', err);
+        return res.status(500).json({ error: 'Internal server error during registration.' });
+    }
+});
+
+/*
+ * Verify user has access to movie
+ * input: { walletAddress: string, movieId: number }
+ * return: { verified: boolean, status: string }
+ */
+app.post('/api/verify', async (req, res) => {
+    const { walletAddress, movieId } = req.body;
+    console.log('Verify called:', { walletAddress, movieId });
+    console.log('Session users:', JSON.stringify(req.session.users));
+
+    if (!walletAddress || !movieId) {
+        return res.status(400).json({ error: 'walletAddress and movieId are required.' });
+    }
+
+    try {
+        // Look up VC CID from session
+        const vcCid = req.session.users?.[walletAddress]?.vcs?.[movieId];
+
+        if (!vcCid) {
+            return res.status(200).json({ verified: false, status: 'DoesNotExist' });
+        }
+
+        // Fetch the VC from IPFS
+        const signedVC = await IPFSService.getJSON(vcCid);
+
+        // Verify the VC structure
+        const isValid = await cryptoService.verifyVC(signedVC);
+
+        // Also check the credential status on chain
+        const cidBytes32 = cidToBytes32(vcCid);
+        // console.log('Verifying cidBytes32:', cidBytes32);
+        const statusCode = await credentialStatus.getCredentialStatusCode(cidBytes32);
         const statusNumber = Number(statusCode);
 
         const STATUS = { 0: 'DoesNotExist', 1: 'Issued', 2: 'Revoked' };
 
         return res.status(200).json({
-            verified: statusNumber === 1,
+            verified: isValid && statusNumber === 1,
             status: STATUS[statusNumber] ?? 'Unknown'
         });
 
@@ -76,10 +189,10 @@ app.post('/api/verify', async (req, res) => {
     }
 });
 
-/* Purchase a movie for a user
- *
+/*
+ * Purchase a movie for a user
  * input: { walletAddress: string, movieId: number }
- * return: { success: boolean, vcHash: string }
+ * return: { success: boolean }
  */
 app.post('/api/purchase', async (req, res) => {
     const { walletAddress, movieId } = req.body;
@@ -89,20 +202,61 @@ app.post('/api/purchase', async (req, res) => {
     }
 
     try {
-        // Compute the VC hash the same way as in verify and on the frontend
-        const vcHash = ethers.keccak256(ethers.toUtf8Bytes(`${walletAddress}:movie:${movieId}`));
+        // Check if already purchased in session
+        const existingCid = req.session.users?.[walletAddress]?.vcs?.[movieId];
+        if (existingCid) {
+            return res.status(200).json({ success: false, error: 'AlreadyOwned' });
+        }
 
-        // Check if credential already exists
-        const statusCode = await credentialStatus.getCredentialStatusCode(vcHash);
+        // Get or create user DID from session
+        if (!req.session.users) req.session.users = {};
+        if (!req.session.users[walletAddress]) {
+            const result = await cryptoService.generateDID();
+            const userDID = result.did;
+            const userPrivateKey = result.privateKey;
+
+            const cidBytes32 = cidToBytes32(result.cid);
+            const didIDHash = ethers.keccak256(ethers.toUtf8Bytes(userDID));
+
+            const tx = await didRegistry.connect(issuerWallet).registerUser(
+                didIDHash,
+                cidBytes32
+            );
+            await tx.wait();
+
+            req.session.users[walletAddress] = { did: userDID, privateKey: userPrivateKey };
+        }
+
+        const userDID = req.session.users[walletAddress].did;
+
+        // Generate a signed VC using the platform as issuer
+        const vcResult = await cryptoService.generateVC(
+            platformDID,
+            platformPrivateKey,
+            userDID,
+            String(movieId)
+        );
+
+        // Convert VC CID to bytes32 for contract storage
+        const cidBytes32 = cidToBytes32(vcResult.cid);
+
+        // Check if credential already exists on chain
+        const statusCode = await credentialStatus.getCredentialStatusCode(cidBytes32);
         if (Number(statusCode) === 1) {
             return res.status(200).json({ success: false, error: 'AlreadyOwned' });
         }
 
-        // Issue the credential, signed by the trusted issuer wallet
-        const tx = await credentialStatus.connect(issuerWallet).issueCredential(vcHash);
+        // Issue the credential on chain
+        const tx = await credentialStatus.connect(issuerWallet).issueCredential(cidBytes32);
         await tx.wait();
 
-        return res.status(200).json({ success: true, vcHash });
+        // Store VC CID in session
+        if (!req.session.users[walletAddress].vcs) {
+            req.session.users[walletAddress].vcs = {};
+        }
+        req.session.users[walletAddress].vcs[movieId] = vcResult.cid;
+
+        return res.status(200).json({ success: true });
 
     } catch (err) {
         console.error('Purchase error:', err);
@@ -111,40 +265,9 @@ app.post('/api/purchase', async (req, res) => {
 });
 
 /*
- * Start Server
+ * DID registry routes
  */
 
-app.listen(PORT, () => {
-    console.log(`server listening on port ${PORT}`);
-});
-
-
-// List existing items
-app.get('/api/items',(request,response) => {
-        response.json(items);
-});
-
-// Get item by id
-app.get('/api/items/:id',(request,response) => {
-    const id = parseInt(request.params.id);
-    let item = items.find(item=> item.id === id);
-
-    if (item) {
-        response.json(item);
-    } else {
-        response.status(404).send('Not Found');
-    }
-})
-
-// create new item
-app.post('/api/items', (request,response) => {
-    let payload = bodyParser.json(request.body);
-    response.status(200).send(payload.name);
-});
-
-/* DID registry routes */
-
-// Register an Issuer (Only Owner)
 app.post('/api/did/register-issuer', async (req, res) => {
     try {
         const { address, did, cid } = req.body;
@@ -155,34 +278,26 @@ app.post('/api/did/register-issuer', async (req, res) => {
     }
 });
 
-// Get Issuer IPFS CID
 app.get('/api/did/issuer/:did', async (req, res) => {
     try {
         const { did } = req.params;
         const cid = await DIDRegistryService.getIssuerIPFSCID(did);
         res.status(200).json({ issuerDIDID: did, ipfsCID: cid });
     } catch (error) {
-        console.error('Error getting issuer CID:', error);
         res.status(500).json({ error: 'Failed to get issuer CID' });
     }
 });
 
-// Register a New User
 app.post('/api/did/register-user', async (req, res) => {
     try {
         const { userDIDID, userIPFSCID } = req.body;
         const tx = await DIDRegistryService.registerUser(userDIDID, userIPFSCID);
-        res.status(200).json({ 
-            message: 'User registered successfully', 
-            transactionHash: tx.hash 
-        });
+        res.status(200).json({ message: 'User registered successfully', transactionHash: tx.hash });
     } catch (error) {
-        console.error('Error registering user:', error);
         res.status(500).json({ error: 'Failed to register user' });
     }
 });
 
-// Update an existing User
 app.post('/api/did/update-user', async (req, res) => {
     try {
         const { userDIDID, userIPFSCID } = req.body;
@@ -193,7 +308,6 @@ app.post('/api/did/update-user', async (req, res) => {
     }
 });
 
-// Get User IPFS CID
 app.get('/api/did/user/:did', async (req, res) => {
     try {
         const { did } = req.params;
@@ -204,47 +318,44 @@ app.get('/api/did/user/:did', async (req, res) => {
     }
 });
 
-/* credential status routes */
+/*
+ * Credential status routes
+ */
 
-// Issue a credential
 app.post('/api/credentials/issue', async (req, res) => {
     try {
-        const { vcHash } = req.body; // Extract vcHash from the request body
+        const { vcHash } = req.body;
         const tx = await credentialStatusService.issueCredential(vcHash);
         res.status(200).json({ message: 'Credential issued successfully', transactionHash: tx.hash });
     } catch (error) {
-        console.error('Error issuing credential:', error);
         res.status(500).json({ error: 'Failed to issue credential' });
     }
 });
 
-// Revoke a credential
 app.post('/api/credentials/revoke', async (req, res) => {
     try {
-        const { vcHash } = req.body; // Extract vcHash from the request body
+        const { vcHash } = req.body;
         const tx = await credentialStatusService.revokeCredential(vcHash);
         res.status(200).json({ message: 'Credential revoked successfully', transactionHash: tx.hash });
     } catch (error) {
-        console.error('Error revoking credential:', error);
         res.status(500).json({ error: 'Failed to revoke credential' });
     }
 });
 
-// Get credential status code
 app.get('/api/credentials/status/:vcHash', async (req, res) => {
     try {
-        const { vcHash } = req.params; // Extract vcHash from the URL parameter
+        const { vcHash } = req.params;
         const statusCode = await credentialStatusService.getCredentialStatusCode(vcHash);
         res.status(200).json({ vcHash, statusCode });
     } catch (error) {
-        console.error('Error getting credential status code:', error);
         res.status(500).json({ error: 'Failed to get credential status code' });
     }
 });
 
-/* IPFS service routes */
+/*
+ * IPFS routes
+ */
 
-// Endpoint to Store
 app.post('/api/IPFS', async (req, res) => {
     try {
         const cid = await IPFSService.storeJSON(req.body);
@@ -254,7 +365,6 @@ app.post('/api/IPFS', async (req, res) => {
     }
 });
 
-// Endpoint to Retrieve
 app.get('/api/IPFS/:cid', async (req, res) => {
     try {
         const data = await IPFSService.getJSON(req.params.cid);
@@ -264,10 +374,10 @@ app.get('/api/IPFS/:cid', async (req, res) => {
     }
 });
 
+/*
+ * Crypto routes
+ */
 
-/* Crypto service routes */
-
-// Endpoint to generate and store DID document
 app.post('/api/generateDID', async (req, res) => {
     try {
         const data = await cryptoService.generateDID();
@@ -277,41 +387,25 @@ app.post('/api/generateDID', async (req, res) => {
     }
 });
 
-// Endpoint to generate a VC
 app.post('/api/generateVC', async (req, res) => {
     try {
         const { issuerDid, issuerPrivKey, userDid, productId } = req.body;
-
         if (!issuerDid || !issuerPrivKey || !userDid || !productId) {
-            return res.status(400).json({ 
-                success: false, 
-                error: "Missing required fields: issuerDid, issuerPrivKey, userDid, or productId" 
-            });
+            return res.status(400).json({ success: false, error: "Missing required fields" });
         }
-
-        const data = await cryptoService.generateVC(
-            issuerDid, 
-            issuerPrivKey, 
-            userDid, 
-            productId
-        );
-
+        const data = await cryptoService.generateVC(issuerDid, issuerPrivKey, userDid, productId);
         res.status(201).json({ success: true, data });
     } catch (error) {
-        console.error("Route Error:", error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
 
-// Endpoint to verify a signed VC
 app.post('/api/verifyVC', async (req, res) => {
     try {
         const { signedVC } = req.body;
-        
         if (!signedVC) {
             return res.status(400).json({ success: false, error: "Missing VC object" });
         }
-
         const data = await cryptoService.verifyVC(signedVC);
         res.status(200).json({ success: true, data });
     } catch (error) {
@@ -320,21 +414,14 @@ app.post('/api/verifyVC', async (req, res) => {
 });
 
 /*
-* Start Server
-*/
+ * Start server
+ */
 
-app.listen(PORT, () => {
-    console.log(`server listening on port ${PORT}`);
+initializePlatform().then(() => {
+    app.listen(PORT, () => {
+        console.log(`server listening on port ${PORT}`);
+    });
+}).catch(err => {
+    console.error('Server failed to start:', err);
+    process.exit(1);
 });
-
-// Example Curl commands (curl doesn't have to be used)
-
-// curl http://localhost:3000/api/items
-// curl http://localhost:3000/api/items/1
-// curl http://localhost:3000/api/items/2
-// curl http://localhost:3000/api/items/3
-
-// curl -X post -H "Content-Type: application/json" -d '{"id": 4, "name": "item4"}' http://localhost:3000/api/items
-
-// run server with 
-// node server.js

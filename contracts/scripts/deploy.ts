@@ -17,16 +17,25 @@ async function main() {
     const credentialStatusAddress = await credentialStatus.getAddress();
     console.log(`CredentialStatus deployed to: ${credentialStatusAddress}`);
 
-    // Write addresses directly to backend config.js
+    // Write addresses to backend config.js
     const configPath = path.resolve("../backend/config.js");
     const configContent = `module.exports = {
     DID_REGISTRY_ADDRESS: '${didRegistryAddress}',
     CREDENTIAL_STATUS_ADDRESS: '${credentialStatusAddress}',
     RPC_URL: 'http://127.0.0.1:8545'
 }\n`;
-
     fs.writeFileSync(configPath, configContent);
     console.log("config.js updated with new contract addresses.");
+
+    // Update contract addresses in backend .env
+    const envPath = path.resolve("../backend/.env");
+    let envContent = fs.readFileSync(envPath, 'utf8');
+    envContent = envContent.replace(/DID_REGISTRY_CONTRACT_ADDRESS=.*/,
+        `DID_REGISTRY_CONTRACT_ADDRESS=${didRegistryAddress}`);
+    envContent = envContent.replace(/CREDENTIAL_STATUS_CONTRACT_ADDRESS=.*/,
+        `CREDENTIAL_STATUS_CONTRACT_ADDRESS=${credentialStatusAddress}`);
+    fs.writeFileSync(envPath, envContent);
+    console.log(".env updated with new contract addresses.");
 }
 
 main().catch((error) => {
