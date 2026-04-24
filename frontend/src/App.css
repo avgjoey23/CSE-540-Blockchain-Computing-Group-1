@@ -77,6 +77,10 @@ body {
   cursor: pointer;
   flex-shrink: 0;
   transition: background-color 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
 }
 
 .profile-wrapper {
