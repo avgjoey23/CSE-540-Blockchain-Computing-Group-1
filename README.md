@@ -148,9 +148,9 @@ TODO: IPFS data is public, how do we make sure only the athenticated user can ac
 These steps are supported/verified on an AWS EC2 instance (t2.xlarge) running Ubuntu Server 24.04 LTS 
 
 1. first, install git if you don't have it:
-	`sudo apt update`
-	`sudo apt install git`
-
+	`sudo apt update` <br/>
+	`sudo apt install git` <br/>
+<br/>
 2. get the repo
 	`git clone https://github.com/avgjoey23/CSE-540-Blockchain-Computing-Group-1.git`
 
