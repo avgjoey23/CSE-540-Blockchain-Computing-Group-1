@@ -4,7 +4,7 @@ require('dotenv').config();
 const { ethers } = require("ethers");
 
 // Load environment variables for provider and contract details
-const provider = new ethers.providers.JsonRpcProvider(process.env.ETH_RPC_URL);
+const provider = new ethers.JsonRpcProvider(process.env.ETH_RPC_URL, undefined, { staticNetwork: true });
 const privateKey = process.env.PRIVATE_KEY; // Private key of the account interacting with the contract
 const wallet = new ethers.Wallet(privateKey, provider);
 

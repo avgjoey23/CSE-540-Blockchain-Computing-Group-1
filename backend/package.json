@@ -20,8 +20,11 @@
     "@digitalcredentials/ed25519-verification-key-2020": "^5.0.0",
     "@digitalcredentials/vc": "^10.0.2",
     "@pinata/sdk": "^2.1.0",
+    "bs58": "^5.0.0",
     "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
     "ethers": "^6.16.0",
+    "express-session": "^1.19.0",
     "ipfs-storage": "^2.0.0"
   }
 }
